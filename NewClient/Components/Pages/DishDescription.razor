@@ -1,0 +1,110 @@
+﻿@page "/dish/{DishId:int}"
+@using NewClient.Models
+@using NewClient.Services
+@using NewClient.Services.Interface
+@inject IDishService DishService
+@inject NavigationManager NavigationManager
+
+<div class="dish-detail-container">
+    @if (dish != null)
+    {
+    <div class="dish-card">
+        <!-- Dish Image -->
+        <div class="dish-image">
+            <img src="@dish.Image" alt="@dish.Name" class="w-full h-56 object-cover transition-transform duration-500 hover:scale-105" />
+        </div>
+
+        <!-- Dish Name and Price -->
+        <h2>@dish.Name</h2>
+        <p>Price: <strong>${selectedPrice}</strong></p>
+
+        <!-- Size Selector -->
+        <h3>Select Size:</h3>
+        <div>
+            @foreach (var size in sizes)
+            {
+            <button @onclick="() => SelectSize(size)"
+                    class="@(selectedSize == size ? "selected-size" : "size-btn")">
+                @size (+${CalculateSizePrice(size)})
+            </button>
+            }
+        </div>
+
+        <!-- Ingredients -->
+        <h3>Ingredients:</h3>
+        <ul>
+            @foreach (var ingredient in dish.Ingridients)
+            {
+            <li>@ingredient.Name</li>
+            }
+        </ul>
+
+        <!-- Buttons -->
+        <button @onclick="BuyDish">Buy</button>
+        <button @onclick="DeleteDish">Delete</button>
+    </div>
+    }
+    else
+    {
+    <p>Loading dish details...</p>
+    }
+
+    <!-- Back to Home Button -->
+    <button @onclick="NavigateToHome" class="back-to-home-btn">Back to Home</button>
+</div>
+
+@code {
+[Parameter] public int DishId { get; set; }
+private Dish dish;
+private string selectedSize = "Medium";
+private decimal selectedPrice;
+private List<string> sizes = new List<string> { "Small", "Medium", "Large" };
+
+protected override async Task OnInitializedAsync()
+{
+try
+{
+dish = await DishService.GetDishById(DishId);
+if (dish != null)
+{
+selectedPrice = dish.Price;
+}
+}
+catch (Exception ex)
+{
+Console.Error.WriteLine($"Error loading dish details: {ex.Message}");
+}
+}
+
+private void SelectSize(string size)
+{
+selectedSize = size;
+selectedPrice = CalculateSizePrice(size);
+}
+
+private decimal CalculateSizePrice(string size)
+{
+return size switch
+{
+"Small" => dish.Price,
+"Medium" => dish.Price + 2,
+"Large" => dish.Price + 4,
+_ => dish.Price
+};
+}
+
+private void BuyDish()
+{
+Console.WriteLine($"Buying dish: {dish.Name}");
+}
+
+private void DeleteDish()
+{
+Console.WriteLine($"Deleting dish: {dish.Name}");
+}
+
+private void NavigateToHome()
+{
+NavigationManager.NavigateTo("/");
+}
+}

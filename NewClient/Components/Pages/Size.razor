@@ -1,0 +1,114 @@
+﻿@page "/size"
+@using NewClient.Models
+@using NewClient.Services.Interface
+@inject IDishSizeService DishSizeService
+
+<div class="container">
+    <h1 class="title">Dish Sizes</h1>
+
+    <div class="grid">
+        @if (sizes != null && sizes.Any())
+        {
+        @foreach (var size in sizes)
+        {
+        <div class="card">
+            <div class="card-content">
+                @if (!string.IsNullOrEmpty(size.Image))
+                {
+                <a @onclick="() => OpenSizeDetails(size)" class="image-wrapper">
+                    <img src="@size.Image" alt="@size.Size photo" class="size-image" />
+                </a>
+                }
+                <span class="size-name">@size.Size</span>
+                <p class="price">$@size.Price</p>
+            </div>
+            <button class="view-button" @onclick="() => OpenSizeDetails(size)">
+                View Details
+            </button>
+        </div>
+        }
+        }
+        else
+        {
+        <p class="no-sizes">No sizes available.</p>
+        }
+    </div>
+
+    <div class="add-button-wrapper">
+        <button class="add-button" @onclick="ToggleAddSizeForm">Add New Size</button>
+    </div>
+
+    @if (showForm)
+    {
+    <div class="modal-overlay" @onclick="ToggleAddSizeForm">
+        <div class="modal-content" @onclick:stopPropagation>
+            <h2 class="modal-title">Add New Size</h2>
+            <form>
+                <div class="form-group">
+                    <label for="size">Size Name</label>
+                    <input type="text" id="size" @bind="newSize.Size" name="size" required />
+                </div>
+                <div class="form-group">
+                    <label for="price">Price</label>
+                    <input type="number" id="price" @bind="newSize.Price" name="price" required />
+                </div>
+                <div class="form-group">
+                    <label for="photo">Size Photo URL</label>
+                    <input type="text" id="photo" @bind="newSize.Image" name="photo" />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="save-button" @onclick="SaveNewSize">Save</button>
+                    <button type="button" class="cancel-button" @onclick="ToggleAddSizeForm">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    }
+</div>
+
+@code {
+private List<DishSize> sizes = new();
+private bool showForm = false;
+private DishSize newSize = new();
+
+protected override async Task OnInitializedAsync()
+{
+try
+{
+sizes = await DishSizeService.GetAllDishSize();
+}
+catch (Exception ex)
+{
+Console.Error.WriteLine($"Error loading sizes: {ex.Message}");
+}
+}
+
+private void ToggleAddSizeForm()
+{
+showForm = !showForm;
+if (!showForm)
+{
+newSize = new DishSize(); // Reset form
+}
+}
+
+private async Task SaveNewSize()
+{
+try
+{
+sizes.Add(newSize); // Temporary addition (should call an API in a real case)
+newSize = new DishSize();
+showForm = false;
+}
+catch (Exception ex)
+{
+Console.Error.WriteLine($"Error saving size: {ex.Message}");
+}
+}
+
+private void OpenSizeDetails(DishSize size)
+{
+Console.WriteLine($"Viewing details for size: {size.Size}");
+// Add navigation or modal logic here
+}
+}
