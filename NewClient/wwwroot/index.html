@@ -16,6 +16,7 @@
     <div class="status-bar-safe-area"></div>
 
     <div id="app">Loading...</div>
+    <div id="notifications" class="notifications-container"></div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.
@@ -24,6 +25,21 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <script>
+        function showNotification(message, type) {
+            const notificationDiv = document.createElement("div");
+            notificationDiv.classList.add("notification", type);
+            notificationDiv.innerHTML = message;
+            
+            const notificationsContainer = document.getElementById("notifications");
+            notificationsContainer.appendChild(notificationDiv);
+            
+            setTimeout(() => {
+                notificationDiv.remove();
+            }, 3000);
+        }
+    </script>
 
 </body>
 

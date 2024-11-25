@@ -24,6 +24,7 @@ public static class MauiProgram
         
         builder.Services.AddSingleton<IDishService, DishService>();
         builder.Services.AddSingleton<IDishSizeService, DishSizeService>();
+        builder.Services.AddScoped<NotificationService>();
         
         builder.Logging.AddDebug();
 
