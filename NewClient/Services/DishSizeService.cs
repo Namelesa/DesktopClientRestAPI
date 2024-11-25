@@ -1,13 +1,15 @@
 using NewClient.Models;
 using NewClient.Services.Interface;
 using Newtonsoft.Json;
+using System.Text;
+using NewClient.Models.Dto;
 
 namespace NewClient.Services;
 
 public class DishSizeService : IDishSizeService
 {
     private readonly string _baseUrl = "http://localhost:5224";
-
+    
     public async Task<List<DishSize>> GetAllDishSize()
     {
         using var client = new HttpClient();
@@ -31,7 +33,7 @@ public class DishSizeService : IDishSizeService
             return new List<DishSize>();
         }
     }
-
+    
     public async Task<DishSize> GetDishSizeById(int id)
     { 
         using var client = new HttpClient();
@@ -53,6 +55,84 @@ public class DishSizeService : IDishSizeService
         {
             Console.Error.WriteLine($"Error in GetDishById: {ex.Message}");
             return null;
+        }
+    }
+
+    public async Task<bool> AddDishSize(DishSizeDto dishSizeDto)
+    {
+        using var client = new HttpClient();
+        try
+        {
+            string url = $"{_baseUrl}/api/Dish/AddDishSize";
+            var jsonContent = JsonConvert.SerializeObject(dishSizeDto);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var apiResponse = await client.PostAsync(url, content);
+
+            if (apiResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Dish size added successfully");
+                return true;
+            }
+
+            Console.Error.WriteLine($"Failed to add dish size. Status Code: {apiResponse.StatusCode}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error in AddDishSize: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> UpdateDishSize(int id, DishSizeDto dishSizeDto)
+    {
+        using var client = new HttpClient();
+        try
+        {
+            string url = $"{_baseUrl}/api/Dish/UpdateDishSize?id={id}";
+            var jsonContent = JsonConvert.SerializeObject(dishSizeDto);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var apiResponse = await client.PutAsync(url, content);
+
+            if (apiResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Dish size updated successfully");
+                return true;
+            }
+
+            Console.Error.WriteLine($"Failed to update dish size. Status Code: {apiResponse.StatusCode}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error in UpdateDishSize: {ex.Message}");
+            return false;
+        }
+    }
+    
+    public async Task<bool> DeleteDishSize(int id)
+    {
+        using var client = new HttpClient();
+        try
+        {
+            string url = $"{_baseUrl}/api/Dish/DeleteDishSize?id={id}";
+            var apiResponse = await client.DeleteAsync(url);
+
+            if (apiResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Dish size deleted successfully");
+                return true;
+            }
+
+            Console.Error.WriteLine($"Failed to delete dish size. Status Code: {apiResponse.StatusCode}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error in DeleteDishSize: {ex.Message}");
+            return false;
         }
     }
 }

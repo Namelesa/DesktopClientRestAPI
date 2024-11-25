@@ -1,114 +1,215 @@
 ﻿@page "/size"
 @using NewClient.Models
+@using NewClient.Models.Dto
 @using NewClient.Services.Interface
 @inject IDishSizeService DishSizeService
+@inject IJSRuntime JS
 
 <div class="container">
     <h1 class="title">Dish Sizes</h1>
 
+    <div class="sort-options">
+        <label for="sortPrice">Sort by price:</label>
+        <select id="sortPrice" @onchange="OnSortPriceChanged">
+            <option value="asc">Price (Low to High)</option>
+            <option value="desc">Price (High to Low)</option>
+        </select>
+    </div>
+
     <div class="grid">
         @if (sizes != null && sizes.Any())
         {
-        @foreach (var size in sizes)
-        {
-        <div class="card">
-            <div class="card-content">
-                @if (!string.IsNullOrEmpty(size.Image))
-                {
-                <a @onclick="() => OpenSizeDetails(size)" class="image-wrapper">
-                    <img src="@size.Image" alt="@size.Size photo" class="size-image" />
-                </a>
-                }
-                <span class="size-name">@size.Size</span>
-                <p class="price">$@size.Price</p>
-            </div>
-            <button class="view-button" @onclick="() => OpenSizeDetails(size)">
-                View Details
-            </button>
-        </div>
-        }
+            @foreach (var size in sizes)
+            {
+                <div class="card">
+                    <div class="card-content">
+                        @if (!string.IsNullOrEmpty(size.Image))
+                        {
+                            <a @onclick="() => OpenSizeDetails(size)" class="image-wrapper">
+                                <img src="@size.Image" alt="@size.Size photo" class="size-image" />
+                            </a>
+                        }
+                        <span class="size-name">@size.Size</span>
+                        <p class="price">$@size.Price</p>
+                    </div>
+                    <button class="view-button" @onclick="() => OpenSizeDetails(size)">
+                        View Details
+                    </button>
+                    <button class="edit-button" @onclick="() => EditSize(size)">
+                        Edit
+                    </button>
+                    <button class="delete-button" @onclick="() => DeleteSize(size)">
+                        Delete
+                    </button>
+                </div>
+            }
         }
         else
         {
-        <p class="no-sizes">No sizes available.</p>
+            <p class="no-sizes">No sizes available.</p>
         }
     </div>
 
     <div class="add-button-wrapper">
         <button class="add-button" @onclick="ToggleAddSizeForm">Add New Size</button>
     </div>
-
+    
     @if (showForm)
     {
-    <div class="modal-overlay" @onclick="ToggleAddSizeForm">
-        <div class="modal-content" @onclick:stopPropagation>
-            <h2 class="modal-title">Add New Size</h2>
-            <form>
-                <div class="form-group">
-                    <label for="size">Size Name</label>
-                    <input type="text" id="size" @bind="newSize.Size" name="size" required />
-                </div>
-                <div class="form-group">
-                    <label for="price">Price</label>
-                    <input type="number" id="price" @bind="newSize.Price" name="price" required />
-                </div>
-                <div class="form-group">
-                    <label for="photo">Size Photo URL</label>
-                    <input type="text" id="photo" @bind="newSize.Image" name="photo" />
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="save-button" @onclick="SaveNewSize">Save</button>
-                    <button type="button" class="cancel-button" @onclick="ToggleAddSizeForm">Cancel</button>
-                </div>
-            </form>
+        <div class="modal-overlay" @onclick="ToggleAddSizeForm">
+            <div class="modal-content" @onclick:stopPropagation>
+                <h2 class="modal-title">@((isEditing ? "Edit" : "Add New") + " Size")</h2>
+                <form>
+                    <div class="form-group">
+                        <label for="size">Size Name</label>
+                        <input type="text" id="size" @bind="newSize.Size" name="size" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" id="price" @bind="newSize.Price" name="price" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="photo">Size Photo URL</label>
+                        <input type="text" id="photo" @bind="newSize.Image" name="photo" />
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="save-button" @onclick="SaveSize">Save</button>
+                        <button type="button" class="cancel-button" @onclick="ToggleAddSizeForm">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+    }
+    
+    @if (showDetails)
+    {
+        <div class="modal-overlay" @onclick="CloseDetails">
+            <div class="modal-content" @onclick:stopPropagation>
+                <h2 class="modal-title">Size Details</h2>
+                <img src="@selectedSize.Image" alt="Size photo" class="size-image" />
+                <p><strong>Size Name:</strong> @selectedSize.Size</p>
+                <p><strong>Price:</strong> $@selectedSize.Price</p>
+                <button class="close-button" @onclick="CloseDetails">Close</button>
+            </div>
+        </div>
     }
 </div>
 
 @code {
-private List<DishSize> sizes = new();
-private bool showForm = false;
-private DishSize newSize = new();
+    private List<DishSize> sizes = new();
+    private bool showForm = false;
+    private bool showDetails = false;
+    private bool isEditing = false;
+    private DishSize newSize = new();
+    private DishSize selectedSize = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSizes();
+    }
 
-protected override async Task OnInitializedAsync()
-{
-try
-{
-sizes = await DishSizeService.GetAllDishSize();
-}
-catch (Exception ex)
-{
-Console.Error.WriteLine($"Error loading sizes: {ex.Message}");
-}
-}
+    private async Task LoadSizes()
+    {
+        try
+        {
+            sizes = await DishSizeService.GetAllDishSize();
+            sizes = sizes.OrderBy(s => s.Price).ToList(); 
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading sizes: {ex.Message}");
+        }
+    }
+    
+    private async Task OnSortPriceChanged(ChangeEventArgs e)
+    {
+        var sortOrder = e.Value.ToString();
 
-private void ToggleAddSizeForm()
-{
-showForm = !showForm;
-if (!showForm)
-{
-newSize = new DishSize(); // Reset form
-}
-}
+        if (sortOrder == "asc")
+        {
+            sizes = sizes.OrderBy(s => s.Price).ToList(); 
+        }
+        else if (sortOrder == "desc")
+        {
+            sizes = sizes.OrderByDescending(s => s.Price).ToList(); 
+        }
 
-private async Task SaveNewSize()
-{
-try
-{
-sizes.Add(newSize); // Temporary addition (should call an API in a real case)
-newSize = new DishSize();
-showForm = false;
-}
-catch (Exception ex)
-{
-Console.Error.WriteLine($"Error saving size: {ex.Message}");
-}
-}
+        StateHasChanged(); 
+    }
+    
+    private void ToggleAddSizeForm()
+    {
+        showForm = !showForm;
+        if (!showForm)
+        {
+            newSize = new DishSize(); 
+            isEditing = false;
+        }
+    }
+    
+    private async Task SaveSize()
+    {
+        try
+        {
+            var sizeDto = new DishSizeDto
+            {
+                Size = newSize.Size,
+                Price = newSize.Price,
+                Image = newSize.Image
+            };
 
-private void OpenSizeDetails(DishSize size)
-{
-Console.WriteLine($"Viewing details for size: {size.Size}");
-// Add navigation or modal logic here
-}
+            if (isEditing)
+            {
+                await DishSizeService.UpdateDishSize(newSize.Id, sizeDto);
+            }
+            else
+            {
+                await DishSizeService.AddDishSize(sizeDto);
+            }
+            
+            await LoadSizes();
+            newSize = new DishSize();
+            showForm = false;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error saving size: {ex.Message}");
+        }
+    }
+    
+    private void EditSize(DishSize size)
+    {
+        newSize = size;
+        isEditing = true;
+        showForm = true;
+    }
+    
+    private async Task DeleteSize(DishSize size)
+    {
+        try
+        {
+            var confirm = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete size {size.Size}?");
+
+            if (confirm)
+            {
+                await DishSizeService.DeleteDishSize(size.Id);
+                await LoadSizes();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error deleting size: {ex.Message}");
+        }
+    }
+    
+    private void OpenSizeDetails(DishSize size)
+    {
+        selectedSize = size;
+        showDetails = true;
+    }
+    
+    private void CloseDetails()
+    {
+        showDetails = false;
+    }
 }

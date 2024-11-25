@@ -426,3 +426,52 @@ input[type="number"]:focus {
     font-size: 1.2rem;
     color: #777;
 }
+
+/* Модальное окно для отображения деталей размера блюда */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 400px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.size-detail-content {
+    margin-bottom: 20px;
+}
+
+.size-image-detail {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    margin-top: 15px;
+}
+
+.close-button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background-color: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.close-button:hover {
+    background-color: #c82333;
+}
