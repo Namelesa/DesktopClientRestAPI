@@ -21,7 +21,7 @@ public static class MauiProgram
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
 #endif
-        
+        builder.Services.AddSingleton<IIngridientService, IngridientService>();
         builder.Services.AddSingleton<IDishService, DishService>();
         builder.Services.AddSingleton<IDishSizeService, DishSizeService>();
         builder.Services.AddScoped<NotificationService>();

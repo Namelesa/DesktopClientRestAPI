@@ -1,110 +1,160 @@
 ﻿@page "/dish/{DishId:int}"
 @using NewClient.Models
-@using NewClient.Services
 @using NewClient.Services.Interface
 @inject IDishService DishService
+@inject IDishSizeService DishSizeService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <div class="dish-detail-container">
-    @if (dish != null)
+    @if (isLoading)
     {
-    <div class="dish-card">
-        <!-- Dish Image -->
-        <div class="dish-image">
-            <img src="@dish.Image" alt="@dish.Name" class="w-full h-56 object-cover transition-transform duration-500 hover:scale-105" />
-        </div>
-
-        <!-- Dish Name and Price -->
-        <h2>@dish.Name</h2>
-        <p>Price: <strong>${selectedPrice}</strong></p>
-
-        <!-- Size Selector -->
-        <h3>Select Size:</h3>
-        <div>
-            @foreach (var size in sizes)
-            {
-            <button @onclick="() => SelectSize(size)"
-                    class="@(selectedSize == size ? "selected-size" : "size-btn")">
-                @size (+${CalculateSizePrice(size)})
+        <p class="text-center text-xl">Loading dish details...</p>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="error-message text-center text-red-500">
+            <p>@errorMessage</p>
+            <button @onclick="NavigateToHome" class="back-to-home-btn px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-all duration-300 mt-4">
+                Back to Home
             </button>
-            }
+        </div>
+    }
+    else if (dish != null)
+    {
+        <div class="dish-card">
+            <!-- Dish Image -->
+            <div class="dish-image">
+                <img src="@dish.Image" alt="@dish.Name" class="dish-img w-full h-64 object-cover rounded-lg shadow-md transition-all duration-300 hover:scale-105" />
+            </div>
+
+            <!-- Dish Name and Price -->
+            <div class="dish-info mt-4">
+                <h2 class="text-3xl font-bold text-center">@dish.Name</h2>
+                <p class="text-xl text-center text-gray-600">Price: <strong>@selectedPrice</strong></p>
+            </div>
+
+            <!-- Size Selector -->
+            <div class="size-selector mt-6">
+                <h3 class="text-xl font-semibold">Select Size:</h3>
+                <div class="flex justify-center gap-4 mt-2">
+                    @foreach (var size in sizes)
+                    {
+                        <button @onclick="() => SelectSize(size)"
+                                class="size-btn px-4 py-2 rounded-full border border-gray-300 text-lg transition-transform duration-300 hover:scale-110 @(selectedSize == size ? "bg-blue-500 text-white" : "bg-white text-blue-500")">
+                            @size (Price: @CalculateSizePrice(size))
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Ingredients -->
+            <div class="ingredients mt-6">
+                <h3 class="text-lg font-semibold">Ingredients:</h3>
+                <ul class="mt-2 list-disc pl-5">
+                    @foreach (var ingredient in dish.Ingridients)
+                    {
+                        <li class="text-gray-700">@ingredient.Name</li>
+                    }
+                </ul>
+            </div>
         </div>
 
-        <!-- Ingredients -->
-        <h3>Ingredients:</h3>
-        <ul>
-            @foreach (var ingredient in dish.Ingridients)
-            {
-            <li>@ingredient.Name</li>
-            }
-        </ul>
-
-        <!-- Buttons -->
-        <button @onclick="BuyDish">Buy</button>
-        <button @onclick="DeleteDish">Delete</button>
-    </div>
+        <!-- Action Buttons -->
+        <div class="flex justify-center mt-6">
+            <button @onclick="BuyDish" class="btn-buy px-6 py-2 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition-all duration-300">
+                Buy
+            </button>
+            <button @onclick="ConfirmDelete" class="btn-delete px-6 py-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-all duration-300">
+                Delete
+            </button>
+            <button @onclick="NavigateToHome" class="back-to-home-btn px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-all duration-300">
+                Back to Home
+            </button>
+        </div>
     }
-    else
-    {
-    <p>Loading dish details...</p>
-    }
-
-    <!-- Back to Home Button -->
-    <button @onclick="NavigateToHome" class="back-to-home-btn">Back to Home</button>
 </div>
 
 @code {
-[Parameter] public int DishId { get; set; }
-private Dish dish;
-private string selectedSize = "Medium";
-private decimal selectedPrice;
-private List<string> sizes = new List<string> { "Small", "Medium", "Large" };
+    [Parameter] public int DishId { get; set; }
+    private Dish dish;
+    private string selectedSize = "";
+    private decimal selectedPrice;
+    private List<string> sizes = new List<string>();
+    private bool isLoading = true;
+    private string errorMessage;
 
-protected override async Task OnInitializedAsync()
-{
-try
-{
-dish = await DishService.GetDishById(DishId);
-if (dish != null)
-{
-selectedPrice = dish.Price;
-}
-}
-catch (Exception ex)
-{
-Console.Error.WriteLine($"Error loading dish details: {ex.Message}");
-}
-}
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Получаем блюдо и размеры
+            dish = await DishService.GetDishById(DishId);
+            var dishSizes = await DishSizeService.GetAllDishSize();
 
-private void SelectSize(string size)
-{
-selectedSize = size;
-selectedPrice = CalculateSizePrice(size);
-}
+            sizes = dishSizes.Select(s => s.Size).ToList();
 
-private decimal CalculateSizePrice(string size)
-{
-return size switch
-{
-"Small" => dish.Price,
-"Medium" => dish.Price + 2,
-"Large" => dish.Price + 4,
-_ => dish.Price
-};
-}
+            if (dish != null && dishSizes.Any())
+            {
+                // Выбираем минимальный размер
+                var minSize = dishSizes.OrderBy(s => s.Price).FirstOrDefault();
+                if (minSize != null)
+                {
+                    selectedSize = minSize.Size;
+                    selectedPrice = dish.Price + minSize.Price;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to load dish details. Please try again later.";
+            Console.Error.WriteLine($"Error loading dish details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
 
-private void BuyDish()
-{
-Console.WriteLine($"Buying dish: {dish.Name}");
-}
+    private void SelectSize(string size)
+    {
+        selectedSize = size;
+        selectedPrice = CalculateSizePrice(size);
+    }
 
-private void DeleteDish()
-{
-Console.WriteLine($"Deleting dish: {dish.Name}");
-}
+    private decimal CalculateSizePrice(string size)
+    {
+        var sizeDetails = DishSizeService.GetAllDishSize()
+            .Result.FirstOrDefault(s => s.Size == size);
 
-private void NavigateToHome()
-{
-NavigationManager.NavigateTo("/");
-}
+        return sizeDetails != null ? dish.Price + sizeDetails.Price : dish.Price;
+    }
+
+    private void BuyDish()
+    {
+        Console.WriteLine($"Buying dish: {dish?.Name} with size: {selectedSize} at price: {selectedPrice}");
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete dish {dish.Name}?");
+        try
+        {
+            if (dish != null && confirm)
+            {
+                await DishService.DeleteDish(dish.Id);
+                NavigateToHome();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to delete dish. Please try again later.";
+            Console.Error.WriteLine($"Error deleting dish: {ex.Message}");
+        }
+    }
+
+    private void NavigateToHome()
+    {
+        NavigationManager.NavigateTo("/");
+    }
 }

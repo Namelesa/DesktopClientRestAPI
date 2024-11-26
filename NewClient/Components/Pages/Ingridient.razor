@@ -1,6 +1,292 @@
-@page "/ingridient"
-<h3>Ingridient</h3>
+@page "/ingredient"
+@using NewClient.Models
+@using NewClient.Services
+@using NewClient.Services.Interface
+@inject IIngridientService IngridientService
+@inject NotificationService NotificationService
+@inject IJSRuntime JS
+
+<div class="container">
+    <h1 class="title">Ingredients</h1>
+
+    <div class="sort-options">
+        <label for="sortName">Sort by name:</label>
+        <select id="sortName" @onchange="OnSortNameChanged">
+            <option value="asc">Name (A-Z)</option>
+            <option value="desc">Name (Z-A)</option>
+        </select>
+    </div>
+
+    <div class="grid">
+        @if (ingredients != null && ingredients.Any())
+        {
+            @foreach (var ingredient in ingredients)
+            {
+                <div class="card">
+                    <div class="card-content">
+                        @if (!string.IsNullOrEmpty(ingredient.Image))
+                        {
+                            <a @onclick="() => OpenIngredientDetails(ingredient)" class="image-wrapper">
+                                <img src="@ingredient.Image" alt="@ingredient.Name фото" class="ingredient-image" />
+                            </a>
+                        }
+                        <span class="ingredient-name">@ingredient.Name</span>
+                    </div>
+                    <button class="view-button" @onclick="() => OpenIngredientDetails(ingredient)">
+                        View details
+                    </button>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="no-ingredients">Ingredients not found.</p>
+        }
+    </div>
+
+    <div class="add-button-wrapper">
+        <button class="add-button" @onclick="ToggleAddIngredientForm">Add ingredient</button>
+    </div>
+
+    @if (showForm)
+    {
+        <div class="modal-overlay" @onclick="ToggleAddIngredientForm">
+            <div class="modal-content" @onclick:stopPropagation>
+                <button class="close-modal" @onclick="ToggleAddIngredientForm">
+                    &#10005;
+                </button>
+                <h2 class="modal-title">@((isEditing ? "Edit" : "Add new") + " ingredient")</h2>
+                <form>
+                    <div class="form-group">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" @bind="newIngredient.Name" name="name" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="photo">Photo</label>
+                        <input type="text" id="photo" @bind="newIngredient.Image" name="photo" />
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="save-button" @onclick="SaveIngredient">Save</button>
+                        <button type="button" class="cancel-button" @onclick="ToggleAddIngredientForm">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (showDetails)
+    {
+        <div class="modal-overlay" @onclick="CloseDetails">
+            <div class="modal-content" @onclick:stopPropagation>
+                <button class="close-modal" @onclick="CloseDetails">
+                    &#10005;
+                </button>
+                <h2 class="modal-title">Details</h2>
+                <img src="@selectedIngredient.Image" alt="Photo" class="ingredient-image" />
+                <p><strong>Name:</strong> @selectedIngredient.Name</p>
+                <div class="modal-actions">
+                    <button class="edit-button" @onclick="() => EditIngredient(selectedIngredient)">
+                        Edit
+                    </button>
+                    <button class="delete-button" @onclick="() => DeleteIngredient(selectedIngredient)">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (showDishIngredients)
+    {
+        <div class="modal-overlay" @onclick="() => showDishIngredients = false">
+            <div class="modal-content" @onclick:stopPropagation>
+                <button class="close-modal" @onclick="() => showDishIngredients = false">
+                    &#10005;
+                </button>
+                <h2 class="modal-title">Dish Ingredients</h2>
+                @if (dishIngredients.Any())
+                {
+                    <ul class="ingredient-list">
+                        @foreach (var dishIngredient in dishIngredients)
+                        {
+                            <li>@dishIngredient.Dish.Name</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p>No ingredients found for this dish.</p>
+                }
+            </div>
+        </div>
+    }
+</div>
 
 @code {
-    
+    private IEnumerable<NewClient.Models.Ingridient> ingredients = new List<NewClient.Models.Ingridient>();
+    private bool showForm = false;
+    private bool showDetails = false;
+    private bool isEditing = false;
+    private NewClient.Models.Ingridient newIngredient = new Models.Ingridient();
+    private NewClient.Models.Ingridient selectedIngredient = new();
+    private bool showDishIngredients = false;
+    private List<DishIngridient> dishIngredients = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadIngredients();
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error with load: {ex.Message}", "error");
+        }
+    }
+
+    private async Task LoadIngredients()
+    {
+        try
+        {
+            ingredients = await IngridientService.GetAllAsync();
+            if (ingredients == null) ingredients = new List<NewClient.Models.Ingridient>();
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error with load: {ex.Message}", "error");
+        }
+    }
+
+    private Task OnSortNameChanged(ChangeEventArgs e)
+    {
+        var sortOrder = e.Value?.ToString();
+
+        if (ingredients != null && ingredients.Any())
+        {
+            ingredients = sortOrder switch
+            {
+                "asc" => ingredients.OrderBy(i => i.Name).ToList(),
+                "desc" => ingredients.OrderByDescending(i => i.Name).ToList(),
+                _ => ingredients
+            };
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void ToggleAddIngredientForm()
+    {
+        showForm = !showForm;
+        if (!showForm)
+        {
+            newIngredient = new();
+            isEditing = false;
+        }
+    }
+
+    private async Task SaveIngredient()
+    {
+        try
+        {
+            if (isEditing)
+            {
+                var response = await IngridientService.UpdateIngridient(newIngredient);
+                if (response)
+                {
+                    await NotificationService.ShowNotification("Ingredient was updated!", "success");
+                    await LoadIngredients();
+                    showForm = false;
+                }
+                else
+                {
+                    await NotificationService.ShowNotification("Ingredient wasn't updated!", "error");
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(newIngredient.Name))
+                {
+                    await NotificationService.ShowNotification("Ingredient name can't be null", "error");
+                    return;
+                }
+
+                var response = await IngridientService.AddIngridient(newIngredient);
+                if (response)
+                {
+                    await NotificationService.ShowNotification("Ingredient was added!", "success");
+                    await LoadIngredients();
+                    newIngredient = new();
+                    showForm = false;
+                }
+                else
+                {
+                    await NotificationService.ShowNotification("Error with adding ingredient", "error");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error with saving ingredient: {ex.Message}", "error");
+        }
+    }
+
+    private void EditIngredient(NewClient.Models.Ingridient ingredient)
+    {
+        newIngredient = ingredient;
+        isEditing = true;
+        showForm = true;
+        CloseDetails();
+    }
+
+    private async Task DeleteIngredient(NewClient.Models.Ingridient ingredient)
+    {
+        try
+        {
+            var confirm = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to remove the ingredient {ingredient.Name}?");
+
+            if (confirm)
+            {
+                await IngridientService.DeleteAsync(ingredient);
+                await LoadIngredients();
+                CloseDetails();
+                await NotificationService.ShowNotification("Ingredient was deleted!", "success");
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error with deleting ingredient: {ex.Message}", "error");
+        }
+    }
+
+    private void OpenIngredientDetails(NewClient.Models.Ingridient ingredient)
+    {
+        selectedIngredient = ingredient;
+        showDetails = true;
+    }
+
+    private void CloseDetails()
+    {
+        showDetails = false;
+    }
+
+    private async Task LoadDishIngredients(int dishId)
+    {
+        try
+        {
+            dishIngredients = await IngridientService.GetDishIngridientByIdAsync(dishId);
+            if (dishIngredients == null || !dishIngredients.Any())
+            {
+                await NotificationService.ShowNotification("No ingredients found for this dish.", "info");
+            }
+            else
+            {
+                showDishIngredients = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error loading dish ingredients: {ex.Message}", "error");
+        }
+    }
 }
