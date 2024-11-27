@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Blazored.LocalStorage;
+using Microsoft.Extensions.Logging;
 using NewClient.Services;
 using NewClient.Services.Interface;
 
@@ -24,6 +25,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IIngridientService, IngridientService>();
         builder.Services.AddSingleton<IDishService, DishService>();
         builder.Services.AddSingleton<IDishSizeService, DishSizeService>();
+        builder.Services.AddBlazoredLocalStorage();
         builder.Services.AddScoped<NotificationService>();
         
         builder.Logging.AddDebug();

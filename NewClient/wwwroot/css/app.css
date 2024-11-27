@@ -7,12 +7,6 @@ a, .btn-link {
     color: #006bb7;
 }
 
-.btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
-}
-
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
@@ -708,5 +702,195 @@ input[type="number"]:focus {
     justify-content: center;
 }
 
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
 
+.btn-primary:hover {
+    background-color: #155d8b;
+}
+
+.menu-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.buy-btn {
+    background-color: #4CAF50;
+    border-color: #45a049;
+}
+
+.buy-btn:hover {
+    background-color: #45a049;
+}
+
+.fixed {
+    position: fixed;
+}
+
+.bg-gray-500 {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+
+
+/* General Button Styles */
+button, .button {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    border: none;
+    outline: none;
+}
+
+/* Primary Button */
+.button-primary, .submit-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+.button-primary:hover, .submit-btn:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
+
+/* Secondary Button */
+.button-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.button-secondary:hover {
+    background-color: #5a6268;
+    transform: scale(1.05);
+}
+
+/* Success Button */
+.button-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.button-success:hover {
+    background-color: #218838;
+    transform: scale(1.05);
+}
+
+/* Danger Button */
+.button-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.button-danger:hover {
+    background-color: #c82333;
+    transform: scale(1.05);
+}
+
+/* Warning Button */
+.button-warning {
+    background-color: #ffc107;
+    color: white;
+}
+
+.button-warning:hover {
+    background-color: #e0a800;
+    transform: scale(1.05);
+}
+
+/* Info Button */
+.button-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.button-info:hover {
+    background-color: #138496;
+    transform: scale(1.05);
+}
+
+/* Button Disabled State */
+button:disabled, .button:disabled {
+    background-color: #ddd;
+    color: #aaa;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* Общие стили для модального окна */
+.modal {
+    display: none; /* скрыто по умолчанию */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease;
+}
+
+/* Видимость модального окна */
+.modal.show {
+    display: flex;
+    opacity: 1;
+}
+
+/* Контейнер модального окна */
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+}
+
+/* Кнопка закрытия модального окна */
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* Заголовок модального окна */
+.modal-header {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Контент модального окна */
+.modal-body {
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+
+/* Подвал модального окна */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+}
 

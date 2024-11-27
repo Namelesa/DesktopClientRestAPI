@@ -11,29 +11,27 @@
     <div class="dish-grid">
         @if (_dishes != null && _dishes.Any())
         {
-            foreach (var item in _dishes)
-            {
-                var dishUrl = $"/dish/{item.Id}"; <!-- Создаем переменную для ссылки -->
-                <div class="dish-card">
-                    <div class="dish-image">
-                        <!-- Ссылка на страницу с подробностями блюда -->
-                        <NavLink class="dish-img" href="@dishUrl">
-                            <img src="@item.Image" alt="@item.Name" class="dish-img" />
-                        </NavLink>
-                    </div>
-                    <div class="dish-info">
-                        <!-- Название блюда тоже является ссылкой -->
-                        <NavLink class="dish-name" href="@dishUrl">
-                            @item.Name
-                        </NavLink>
-                        <button class="buy-btn" @onclick="() => BuyDish(item)">Buy</button>
-                    </div>
-                </div>
-            }
+        foreach (var item in _dishes)
+        {
+        var dishUrl = $"/dish/{item.Id}";
+        <div class="dish-card">
+            <div class="dish-image">
+                <NavLink class="dish-img" href="@dishUrl">
+                    <img src="@item.Image" alt="@item.Name" class="dish-img" />
+                </NavLink>
+            </div>
+            <div class="dish-info">
+                <NavLink class="dish-name" href="@dishUrl">
+                    @item.Name
+                </NavLink>
+                <button class="buy-btn" @onclick="() => BuyDish(item)">Buy</button>
+            </div>
+        </div>
+        }
         }
         else
         {
-            <p>No dishes in your database</p>
+        <p>No dishes in your database</p>
         }
     </div>
 
@@ -43,101 +41,100 @@
 
     @if (showForm)
     {
-        <div class="modal-overlay" @onclick="ToggleAddDishForm">
-            <div class="modal-content" @onclick:stopPropagation>
-                <form @onsubmit="AddDish">
-                    <div class="form-group">
-                        <label for="name">Dish Name</label>
-                        <input type="text" id="name" @bind="newDish.Name" required class="input-field" />
-                    </div>
-                    <div class="form-group">
-                        <label for="price">Price</label>
-                        <input type="number" id="price" @bind="newDish.Price" required class="input-field" />
-                    </div>
-                    <div class="form-group">
-                        <label for="ingredients">Ingredients</label>
-                        <input type="text" id="ingredients" @bind="newDish.Ingridients" class="input-field" />
-                    </div>
-                    <div class="form-group">
-                        <label for="image">Image URL</label>
-                        <input type="text" id="image" @bind="newDish.Image" required class="input-field" />
-                    </div>
-                    <button type="submit" class="submit-btn">Submit</button>
-                </form>
-            </div>
+    <div class="modal-overlay" @onclick="ToggleAddDishForm">
+        <div class="modal-content" @onclick:stopPropagation>
+            <form @onsubmit="AddDish">
+                <div class="form-group">
+                    <label for="name">Dish Name</label>
+                    <input type="text" id="name" @bind="newDish.Name" required class="input-field" />
+                </div>
+                <div class="form-group">
+                    <label for="price">Price</label>
+                    <input type="number" id="price" @bind="newDish.Price" required class="input-field" />
+                </div>
+                <div class="form-group">
+                    <label for="ingredients">Ingredients</label>
+                    <input type="text" id="ingredients" @bind="newDish.Ingridients" class="input-field" />
+                </div>
+                <div class="form-group">
+                    <label for="image">Image URL</label>
+                    <input type="text" id="image" @bind="newDish.Image" required class="input-field" />
+                </div>
+                <button type="submit" class="submit-btn">Submit</button>
+            </form>
         </div>
+    </div>
     }
 </div>
 
 @code {
-    private List<Dish> _dishes;
-    private bool showForm = false;
-    private Dish newDish = new Dish();
+private List<Dish> _dishes;
+private bool showForm = false;
+private Dish newDish = new Dish();
 
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            _dishes = await DishService.GetAllDish();
-            if (_dishes == null)
-            {
-                _dishes = new List<Dish>();
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error fetching dishes: {ex.Message}");
-            _dishes = new List<Dish>();
-        }
-    }
+protected override async Task OnInitializedAsync()
+{
+try
+{
+_dishes = await DishService.GetAllDish();
+if (_dishes == null)
+{
+_dishes = new List<Dish>();
+}
+}
+catch (Exception ex)
+{
+Console.Error.WriteLine($"Error fetching dishes: {ex.Message}");
+_dishes = new List<Dish>();
+}
+}
 
-    private void ToggleAddDishForm()
-    {
-        showForm = !showForm;
-    }
+private void ToggleAddDishForm()
+{
+showForm = !showForm;
+StateHasChanged(); 
+}
 
-    private void BuyDish(Dish dish)
-    {
-        Console.WriteLine($"Buying {dish.Name}");
-    }
+private void BuyDish(Dish dish)
+{
+Console.WriteLine($"Buying {dish.Name}");
+}
 
-    private async Task AddDish()
-    {
-        try
-        {
-            // Разделяем строку ингредиентов в массив (по запятой)
+private async Task AddDish()
+{
+try
+{
+if (string.IsNullOrWhiteSpace(newDish.Name) || newDish.Price <= 0 || string.IsNullOrWhiteSpace(newDish.Image))
+{
+Console.Error.WriteLine("Dish is invalid.");
+return;
+}
 
-            // Создаем DTO для отправки на сервер
-            var dishDto = new DishDto
-            {
-                Name = newDish.Name,
-                Price = newDish.Price,
-                Image = newDish.Image,
-                //DishIngridientsNames = ingredientsArray
-            };
+var dishDto = new DishDto
+{
+Name = newDish.Name,
+Price = newDish.Price,
+Image = newDish.Image,
+};
 
-            // Вызываем метод AddDish из сервиса
-            var result = await DishService.AddDish(dishDto);
+var result = await DishService.AddDish(dishDto);
 
-            if (result)
-            {
-                Console.WriteLine($"Dish {newDish.Name} added successfully!");
-                
-                _dishes.Add(newDish);
-                
-                newDish = new Dish();
-                ToggleAddDishForm();
-            }
-            else
-            {
-                Console.Error.WriteLine($"Failed to add dish {newDish.Name}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error in AddDish: {ex.Message}");
-        }
-    }
+if (result)
+{
+Console.WriteLine($"Dish {newDish.Name} added successfully!");
 
-
+_dishes.Add(newDish); 
+newDish = new Dish();  
+ToggleAddDishForm();  
+}
+else
+{
+Console.Error.WriteLine($"Failed to add dish {newDish.Name}");
+}
+}
+catch (Exception ex)
+{
+Console.Error.WriteLine($"Error in AddDish: {ex.Message}");
+}
+}
 }

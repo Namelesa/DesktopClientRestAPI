@@ -1,114 +1,54 @@
 ﻿@page "/dish/{DishId:int}"
 @using NewClient.Models
+@using NewClient.Models.Dto
+@using NewClient.Services
 @using NewClient.Services.Interface
 @inject IDishService DishService
 @inject IDishSizeService DishSizeService
 @inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
 @inject IJSRuntime JS
 
-<div class="dish-detail-container">
-    @if (isLoading)
-    {
-        <p class="text-center text-xl">Loading dish details...</p>
-    }
-    else if (errorMessage != null)
-    {
-        <div class="error-message text-center text-red-500">
-            <p>@errorMessage</p>
-            <button @onclick="NavigateToHome" class="back-to-home-btn px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-all duration-300 mt-4">
-                Back to Home
-            </button>
-        </div>
-    }
-    else if (dish != null)
-    {
-        <div class="dish-card">
-            <!-- Dish Image -->
-            <div class="dish-image">
-                <img src="@dish.Image" alt="@dish.Name" class="dish-img w-full h-64 object-cover rounded-lg shadow-md transition-all duration-300 hover:scale-105" />
-            </div>
-
-            <!-- Dish Name and Price -->
-            <div class="dish-info mt-4">
-                <h2 class="text-3xl font-bold text-center">@dish.Name</h2>
-                <p class="text-xl text-center text-gray-600">Price: <strong>@selectedPrice</strong></p>
-            </div>
-
-            <!-- Size Selector -->
-            <div class="size-selector mt-6">
-                <h3 class="text-xl font-semibold">Select Size:</h3>
-                <div class="flex justify-center gap-4 mt-2">
-                    @foreach (var size in sizes)
-                    {
-                        <button @onclick="() => SelectSize(size)"
-                                class="size-btn px-4 py-2 rounded-full border border-gray-300 text-lg transition-transform duration-300 hover:scale-110 @(selectedSize == size ? "bg-blue-500 text-white" : "bg-white text-blue-500")">
-                            @size (Price: @CalculateSizePrice(size))
-                        </button>
-                    }
-                </div>
-            </div>
-
-            <!-- Ingredients -->
-            <div class="ingredients mt-6">
-                <h3 class="text-lg font-semibold">Ingredients:</h3>
-                <ul class="mt-2 list-disc pl-5">
-                    @foreach (var ingredient in dish.Ingridients)
-                    {
-                        <li class="text-gray-700">@ingredient.Name</li>
-                    }
-                </ul>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex justify-center mt-6">
-            <button @onclick="BuyDish" class="btn-buy px-6 py-2 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition-all duration-300">
-                Buy
-            </button>
-            <button @onclick="ConfirmDelete" class="btn-delete px-6 py-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-all duration-300">
-                Delete
-            </button>
-            <button @onclick="NavigateToHome" class="back-to-home-btn px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-800 transition-all duration-300">
-                Back to Home
-            </button>
-        </div>
-    }
-</div>
-
 @code {
-    [Parameter] public int DishId { get; set; }
+    [Parameter]
+    public int DishId { get; set; }
+
     private Dish dish;
-    private string selectedSize = "";
+    private List<string> sizes = new();
+    private string selectedSize;
     private decimal selectedPrice;
-    private List<string> sizes = new List<string>();
-    private bool isLoading = true;
     private string errorMessage;
+    private bool isLoading = true;
+    private bool isEditing = false;
+    private string newIngredientName;
+    private bool isModalVisible = false;
+    private int dishToDeleteId;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Получаем блюдо и размеры
             dish = await DishService.GetDishById(DishId);
-            var dishSizes = await DishSizeService.GetAllDishSize();
 
+            if (dish == null)
+            {
+                await NotificationService.ShowNotification("Dish not found.", "error");
+                return;
+            }
+
+            var dishSizes = await DishSizeService.GetAllDishSize();
             sizes = dishSizes.Select(s => s.Size).ToList();
 
-            if (dish != null && dishSizes.Any())
+            var minSize = dishSizes.OrderBy(s => s.Price).FirstOrDefault();
+            if (minSize != null)
             {
-                // Выбираем минимальный размер
-                var minSize = dishSizes.OrderBy(s => s.Price).FirstOrDefault();
-                if (minSize != null)
-                {
-                    selectedSize = minSize.Size;
-                    selectedPrice = dish.Price + minSize.Price;
-                }
+                selectedSize = minSize.Size;
+                selectedPrice = dish.Price + minSize.Price;
             }
         }
         catch (Exception ex)
         {
-            errorMessage = "Failed to load dish details. Please try again later.";
-            Console.Error.WriteLine($"Error loading dish details: {ex.Message}");
+            await NotificationService.ShowNotification($"Error loading dish details: {ex.Message}", "error");
         }
         finally
         {
@@ -116,45 +56,217 @@
         }
     }
 
-    private void SelectSize(string size)
+    private async Task SelectSizeAsync(string size)
     {
         selectedSize = size;
-        selectedPrice = CalculateSizePrice(size);
-    }
 
-    private decimal CalculateSizePrice(string size)
-    {
-        var sizeDetails = DishSizeService.GetAllDishSize()
-            .Result.FirstOrDefault(s => s.Size == size);
-
-        return sizeDetails != null ? dish.Price + sizeDetails.Price : dish.Price;
-    }
-
-    private void BuyDish()
-    {
-        Console.WriteLine($"Buying dish: {dish?.Name} with size: {selectedSize} at price: {selectedPrice}");
-    }
-
-    private async Task ConfirmDelete()
-    {
-        var confirm = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete dish {dish.Name}?");
         try
         {
-            if (dish != null && confirm)
+            var dishSizes = await DishSizeService.GetAllDishSize();
+            var sizeDetails = dishSizes.FirstOrDefault(s => s.Size == size);
+            selectedPrice = sizeDetails != null ? dish.Price + sizeDetails.Price : dish.Price;
+        }
+        catch (Exception)
+        {
+            await NotificationService.ShowNotification("Failed to calculate price for the selected size.", "error");
+        }
+    }
+
+    private void ToggleEditMode()
+    {
+        isEditing = !isEditing;
+    }
+
+    private async Task EditDishAsync()
+    {
+        try
+        {
+            var dishDto = new DishDto
             {
-                await DishService.DeleteDish(dish.Id);
-                NavigateToHome();
+                Name = dish.Name,
+                Price = dish.Price,
+                Image = dish.Image,
+            };
+
+            bool isUpdated = await DishService.UpdateDish(dish.Id, dishDto);
+            if (isUpdated)
+            {
+                await OnInitializedAsync();
+            }
+            else
+            {
+                await NotificationService.ShowNotification("Failed to update the dish.", "error");
             }
         }
         catch (Exception ex)
         {
-            errorMessage = "Failed to delete dish. Please try again later.";
-            Console.Error.WriteLine($"Error deleting dish: {ex.Message}");
+            await NotificationService.ShowNotification("Error editing dish:", "error");
         }
     }
 
-    private void NavigateToHome()
+    private void ShowDeleteModal(int dishId)
     {
-        NavigationManager.NavigateTo("/");
+        isModalVisible = true;
+        dishToDeleteId = dishId;
     }
+
+    private void HideDeleteModal()
+    {
+        isModalVisible = false;
+        dishToDeleteId = 0;
+    }
+
+    private async Task DeleteDishAsync()
+    {
+        try
+        {
+            bool isDeleted = await DishService.DeleteDish(dishToDeleteId);
+            if (isDeleted)
+            {
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                await NotificationService.ShowNotification("Failed to delete the dish.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error deleting dish: {ex.Message}", "error");
+        }
+        finally
+        {
+            HideDeleteModal();
+        }
+    }
+
+    private async Task BuyDishAsync()
+    {
+    }
+
+    private void RemoveIngredient(int ingredientId)
+    {
+        var ingredientToRemove = dish.Ingridients.FirstOrDefault(i => i.Id == ingredientId);
+        if (ingredientToRemove != null)
+        {
+            dish.Ingridients.Remove(ingredientToRemove);
+        }
+    }
+
+    private void AddIngredient()
+    {
+        if (!string.IsNullOrEmpty(newIngredientName))
+        {
+            //dish.Ingridients.Add(new Ingredient { Name = newIngredientName });
+            newIngredientName = string.Empty;
+        }
+    }
+}
+
+
+@if (isLoading)
+{
+    <p>Loading dish details...</p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p class="text-red-500">@errorMessage</p>
+}
+else
+{
+    <div class="p-6 bg-white rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl">
+        @if (!isEditing)
+        {
+            <div class="mb-4 overflow-hidden rounded-lg">
+                <img class="w-full h-auto object-cover transition-transform duration-500 hover:scale-105" src="@dish.Image" alt="@dish.Name" />
+            </div>
+            <p class="text-gray-800 font-medium mb-2">Price: 
+                <span class="text-lg font-bold text-green-600">@selectedPrice</span>
+            </p>
+            <h3 class="text-gray-900 font-semibold mb-2">Select Size:</h3>
+            <div class="flex space-x-2 mb-4">
+                @foreach (var size in sizes)
+                {
+                    <button @onclick="() => SelectSizeAsync(size)" 
+                            class="flex-1 p-2 rounded transition duration-200 
+                                   @(selectedSize == size ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800")">
+                        @size
+                    </button>
+                }
+            </div>
+            <h3 class="text-gray-900 font-semibold mb-2">Ingredients:</h3>
+            <ul class="list-disc list-inside text-gray-700 mb-4">
+                @foreach (var ingredient in dish.Ingridients)
+                {
+                    <li>@ingredient.Name</li>
+                }
+            </ul>
+            <div class="flex space-x-4 mt-4">
+                <button @onclick="ToggleEditMode" class="button-primary">
+                    Edit
+                </button>
+                <button @onclick="() => ShowDeleteModal(dish.Id)" class="button-danger">
+                    Delete
+                </button>
+                <button @onclick="BuyDishAsync" class="button-success">
+                    Buy
+                </button>
+            </div>
+        }
+        @if (isEditing)
+        {
+            <h3 class="text-gray-900 font-semibold mb-4">Edit Dish</h3>
+            <div class="flex flex-col space-y-4">
+                <input @bind="dish.Name" placeholder="Dish Name" class="p-2 border border-gray-300 rounded" />
+                <input @bind="dish.Image" placeholder="Dish Image URL" class="p-2 border border-gray-300 rounded" />
+                <input @bind="dish.Price" placeholder="Dish Price" type="number" class="p-2 border border-gray-300 rounded" />
+
+                <h4 class="text-gray-900 font-semibold mb-2">Ingredients:</h4>
+                <ul class="list-disc list-inside text-gray-700 mb-4">
+                    @foreach (var ingredient in dish?.Ingridients)
+                    {
+                        <li>
+                            @ingredient.Name
+                            <button @onclick="() => RemoveIngredient(ingredient.Id)" class="ml-2 text-red-600 hover:text-red-800 transition duration-200">
+                                Remove
+                            </button>
+                        </li>
+                    }
+                </ul>
+
+                <div class="flex items-center space-x-4">
+                    <input @bind="newIngredientName" placeholder="New ingredient" class="p-2 border border-gray-300 rounded flex-1" />
+                    <button @onclick="AddIngredient" class="button-success">
+                        Add
+                    </button>
+                </div>
+
+                <div class="flex space-x-4 mt-4">
+                    <button @onclick="EditDishAsync" class="button-success">
+                        Save Changes
+                    </button>
+                    <button @onclick="ToggleEditMode" class="button-secondary">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (isModalVisible)
+{
+    <div class="modal show">
+        <div class="modal-content">
+            <button @onclick="HideDeleteModal" class="modal-close">&times;</button>
+            <div class="modal-header">Are you sure you want to delete this dish?</div>
+            <div class="modal-body">
+                <p>This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button @onclick="DeleteDishAsync" class="button-danger">Delete</button>
+                <button @onclick="HideDeleteModal" class="button-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
 }
