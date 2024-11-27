@@ -56,8 +56,7 @@ namespace NewClient.Services
                 return null;
             }
         }
-
-        // Метод для добавления нового блюда
+        
         public async Task<bool> AddDish(DishDto dishDto)
         {
             using var client = new HttpClient();
@@ -83,9 +82,7 @@ namespace NewClient.Services
                 return false;
             }
         }
-
-
-        // Метод для обновления блюда
+        
         public async Task<bool> UpdateDish(int id, DishDto dishDto)
         {
             using var client = new HttpClient();
@@ -110,8 +107,7 @@ namespace NewClient.Services
                 return false;
             }
         }
-
-        // Метод для удаления блюда
+        
         public async Task<bool> DeleteDish(int id)
         {
             Console.Error.WriteLine("Enter in method");
