@@ -1,4 +1,162 @@
 @page "/cart"
+@using NewClient.Models.Dto
+@using NewClient.Services
+@using NewClient.Services.Interface
+@inject CartService CartService
+@inject IOrderService OrderService
+@inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
+@inject IJSRuntime JS
 
-<h3>Shopping Cart</h3>
+<h3 class="page-title">Shopping Cart</h3>
 
+@if (!cartItems.Any())
+{
+    <p class="empty-cart-text">Your cart is empty.</p>
+}
+else
+{
+    <div class="cart-items">
+        @foreach (var item in cartItems)
+        {
+            <div class="cart-item">
+                <img src="@item.DishImage" alt="@item.DishName" class="cart-item-image" />
+                
+                <div class="cart-item-details">
+                    <h2 class="cart-item-title">@item.DishName</h2>
+                    <p class="cart-item-size">Size: @item.Size</p>
+                    <p class="cart-item-price">@item.Quantity x @item.Price</p>
+                    <p class="cart-item-total">Total: @item.TotalPrice</p>
+                </div>
+
+                <div class="cart-item-controls">
+                    <button @onclick="() => DecreaseQuantity(item)" class="quantity-btn">-</button>
+                    <span class="quantity-text">@item.Quantity</span>
+                    <button @onclick="() => IncreaseQuantity(item)" class="quantity-btn">+</button>
+                </div>
+
+                <button @onclick="() => RemoveItem(item.DishId, item.Size)" class="remove-btn">Remove</button>
+            </div>
+        }
+    </div>
+
+    <div class="cart-summary">
+        <div class="summary-row">
+            <span>Total Items:</span>
+            <span>@totalItems</span>
+        </div>
+        <div class="summary-row">
+            <span>Subtotal:</span>
+            <span>@totalPrice.ToString("0.00")</span>
+        </div>
+
+        <div class="checkout-btn-container">
+            <button @onclick="ClearCart" class="clear-cart-btn">
+                Clear Cart
+            </button>
+            <button @onclick="CheckOut" class="checkout-btn">
+                Checkout
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CartItem> cartItems;
+    private int totalItems;
+    private decimal totalPrice;
+
+    protected override void OnInitialized()
+    {
+        cartItems = CartService.GetCartItems().ToList();
+        CalculateTotals();
+    }
+
+    private void CalculateTotals()
+    {
+        totalItems = cartItems.Sum(item => item.Quantity);
+        totalPrice = cartItems.Sum(item => item.TotalPrice);
+    }
+
+    private void DecreaseQuantity(CartItem item)
+    {
+        if (item.Quantity > 1)
+        {
+            item.Quantity--;
+            CartService.UpdateQuantity(item.DishId, item.Size, item.Quantity);
+            CalculateTotals();
+        }
+    }
+
+    private void IncreaseQuantity(CartItem item)
+    {
+        item.Quantity++;
+        CartService.UpdateQuantity(item.DishId, item.Size, item.Quantity);
+        CalculateTotals();
+    }
+
+    private async void RemoveItem(int dishId, string size)
+    {
+        CartService.RemoveFromCart(dishId, size);
+        cartItems = CartService.GetCartItems().ToList();
+        CalculateTotals();
+        await NotificationService.ShowNotification("You Remove the item from cart", "success");
+    }
+
+    private async void ClearCart()
+    {
+        CartService.ClearCart();
+        cartItems.Clear();
+        totalItems = 0;
+        totalPrice = 0;
+        await NotificationService.ShowNotification("You cleaned the cart", "success");
+    }
+
+    private async Task CheckOut()
+    {
+        if (!cartItems.Any())
+        {
+            Console.Error.WriteLine("Cart is empty, cannot proceed with checkout.");
+            return;
+        }
+
+        var orderDto = new OrderDto
+        {
+            Total = totalPrice
+        };
+        
+        var orderCreationResult = await OrderService.GetCreatedOrderIdAsync(orderDto);
+        
+        if (orderCreationResult == null || orderCreationResult == 0)
+        {
+            await NotificationService.ShowNotification("Failed to create order.", "error");
+            return;
+        }
+
+        var createdOrderId = orderCreationResult;
+
+        var OrderDetails = cartItems.Select(item => new OrderDetailDto
+        {
+            OrderId = createdOrderId,
+            DishId = item.DishId,
+            Quantity = item.Quantity,
+            Price = item.Price,
+            Size = item.Size
+        }).ToList();
+        var orderDetailsSuccess = await OrderService.AddOrderDetailsAsync(OrderDetails);
+
+        if (orderDetailsSuccess)
+        {
+            CartService.ClearCart();
+            cartItems.Clear();
+            totalItems = 0;
+            totalPrice = 0;
+            NavigationManager.NavigateTo("/order");
+            await NotificationService.ShowNotification("You created the order", "success");
+        }
+        else
+        {
+            await NotificationService.ShowNotification("Failed to add order details.", "error");
+        }
+    }
+}

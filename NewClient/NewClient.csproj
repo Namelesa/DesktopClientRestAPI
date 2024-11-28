@@ -1,13 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <!-- Указываем только maccatalyst -->
         <TargetFramework>net9.0-maccatalyst</TargetFramework>
 
-        <!-- Указываем архитектуру macOS ARM -->
         <RuntimeIdentifier>maccatalyst-arm64</RuntimeIdentifier>
 
-        <!-- Настройки сборки -->
         <OutputType>Exe</OutputType>
         <RootNamespace>NewClient</RootNamespace>
         <UseMaui>true</UseMaui>
@@ -16,17 +13,13 @@
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
 
-        <!-- Отображаемое имя приложения -->
         <ApplicationTitle>NewClient</ApplicationTitle>
-
-        <!-- Идентификатор приложения -->
+        
         <ApplicationId>com.companyname.newclient</ApplicationId>
-
-        <!-- Версии -->
+        
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
-
-        <!-- Поддерживаемая версия macOS -->
+        
         <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     </PropertyGroup>
 

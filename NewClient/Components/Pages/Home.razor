@@ -3,7 +3,10 @@
 @using NewClient.Models.Dto
 @using NewClient.Services
 @using NewClient.Services.Interface
+@inject IIngridientService IngridientService
 @inject IDishService DishService
+@inject IJSRuntime JS
+
 
 <div class="menu-container">
     <h1 class="title">Our Menu</h1>
@@ -11,27 +14,27 @@
     <div class="dish-grid">
         @if (_dishes != null && _dishes.Any())
         {
-        foreach (var item in _dishes)
-        {
-        var dishUrl = $"/dish/{item.Id}";
-        <div class="dish-card">
-            <div class="dish-image">
-                <NavLink class="dish-img" href="@dishUrl">
-                    <img src="@item.Image" alt="@item.Name" class="dish-img" />
-                </NavLink>
-            </div>
-            <div class="dish-info">
-                <NavLink class="dish-name" href="@dishUrl">
-                    @item.Name
-                </NavLink>
-                <button class="buy-btn" @onclick="() => BuyDish(item)">Buy</button>
-            </div>
-        </div>
-        }
+            foreach (var item in _dishes)
+            {
+                var dishUrl = $"/dish/{item.Id}";
+                <div class="dish-card">
+                    <div class="dish-image">
+                        <NavLink class="dish-img" href="@dishUrl">
+                            <img src="@item.Image" alt="@item.Name" class="dish-img" />
+                        </NavLink>
+                    </div>
+                    <div class="dish-info">
+                        <NavLink class="dish-name" href="@dishUrl">
+                            @item.Name
+                        </NavLink>
+                        <button class="buy-btn" @onclick="() => BuyDish(item)">Buy</button>
+                    </div>
+                </div>
+            }
         }
         else
         {
-        <p>No dishes in your database</p>
+            <p>No dishes in your database</p>
         }
     </div>
 
@@ -41,100 +44,153 @@
 
     @if (showForm)
     {
-    <div class="modal-overlay" @onclick="ToggleAddDishForm">
-        <div class="modal-content" @onclick:stopPropagation>
-            <form @onsubmit="AddDish">
-                <div class="form-group">
-                    <label for="name">Dish Name</label>
-                    <input type="text" id="name" @bind="newDish.Name" required class="input-field" />
-                </div>
-                <div class="form-group">
-                    <label for="price">Price</label>
-                    <input type="number" id="price" @bind="newDish.Price" required class="input-field" />
-                </div>
-                <div class="form-group">
-                    <label for="ingredients">Ingredients</label>
-                    <input type="text" id="ingredients" @bind="newDish.Ingridients" class="input-field" />
-                </div>
-                <div class="form-group">
-                    <label for="image">Image URL</label>
-                    <input type="text" id="image" @bind="newDish.Image" required class="input-field" />
-                </div>
-                <button type="submit" class="submit-btn">Submit</button>
-            </form>
+        <div class="modal-overlay" @onclick="ToggleAddDishForm">
+            <div class="modal-content" @onclick:stopPropagation>
+                <form @onsubmit="AddDish">
+                    <div class="form-group">
+                        <label for="name">Dish Name</label>
+                        <input type="text" id="name" @bind="newDish.Name" required class="input-field" />
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" id="price" @bind="newDish.Price" required class="input-field" />
+                    </div>
+                    <div class="form-group">
+                        <label for="image">Image URL</label>
+                        <input type="text" id="image" @bind="newDish.Image" required class="input-field" />
+                    </div>
+                    <div class="form-group">
+                        <label for="ingredients">Select Ingredients</label>
+                        <select id="ingredients" @onchange="AddSelectedIngredient" class="input-field">
+                            <option value="" disabled selected>Select an ingredient</option>
+                            @foreach (var ingredient in availableIngredients)
+                            {
+                                <option value="@ingredient.Id">@ingredient.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Selected Ingredients:</label>
+                        <ul>
+                            @foreach (var ingredient in selectedIngredients)
+                            {
+                                <li>
+                                    @ingredient.Name
+                                    <button type="button" @onclick="() => RemoveIngredient(ingredient)">Remove</button>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit</button>
+                </form>
+            </div>
         </div>
-    </div>
     }
 </div>
 
 @code {
-private List<Dish> _dishes;
-private bool showForm = false;
-private Dish newDish = new Dish();
+    private List<Dish> _dishes;
+    private bool showForm = false;
+    private Dish newDish = new Dish();
+    private List<NewClient.Models.Ingridient> availableIngredients = new List<NewClient.Models.Ingridient>();
+    private List<NewClient.Models.Ingridient> selectedIngredients = new List<NewClient.Models.Ingridient>();
 
-protected override async Task OnInitializedAsync()
-{
-try
-{
-_dishes = await DishService.GetAllDish();
-if (_dishes == null)
-{
-_dishes = new List<Dish>();
-}
-}
-catch (Exception ex)
-{
-Console.Error.WriteLine($"Error fetching dishes: {ex.Message}");
-_dishes = new List<Dish>();
-}
-}
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _dishes = await DishService.GetAllDish() ?? new List<Dish>();
 
-private void ToggleAddDishForm()
-{
-showForm = !showForm;
-StateHasChanged(); 
-}
+            var ingredientsFromServer = await IngridientService.GetAllAsync();
+            if (ingredientsFromServer != null)
+            {
+                availableIngredients = ingredientsFromServer.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error fetching dishes or ingredients: {ex.Message}");
+            _dishes = new List<Dish>();
+        }
+    }
+    private void ToggleAddDishForm()
+    {
+        showForm = !showForm;
+    }
+    private void AddSelectedIngredient(ChangeEventArgs e)
+    {
+        if (e.Value != null && int.TryParse(e.Value.ToString(), out int ingredientId))
+        {
+            var ingredient = availableIngredients.FirstOrDefault(i => i.Id == ingredientId);
+            if (ingredient != null && !selectedIngredients.Any(i => i.Id == ingredient.Id))
+            {
+                selectedIngredients.Add(ingredient);
+            }
+        }
+    }
+    private void RemoveIngredient(NewClient.Models.Ingridient ingredient)
+    {
+        selectedIngredients.Remove(ingredient);
+    }
 
-private void BuyDish(Dish dish)
-{
-Console.WriteLine($"Buying {dish.Name}");
-}
+    private async Task BuyDish(Dish dish)
+    {
+        string selectedSize = "S"; 
+        decimal selectedPrice = dish.Price;
+        int quantity = 1;
 
-private async Task AddDish()
-{
-try
-{
-if (string.IsNullOrWhiteSpace(newDish.Name) || newDish.Price <= 0 || string.IsNullOrWhiteSpace(newDish.Image))
-{
-Console.Error.WriteLine("Dish is invalid.");
-return;
-}
+        CartService.AddToCart(dish, selectedSize, selectedPrice, quantity);
+    }
 
-var dishDto = new DishDto
-{
-Name = newDish.Name,
-Price = newDish.Price,
-Image = newDish.Image,
-};
+    private async Task AddDish()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newDish.Name) || 
+                newDish.Price <= 0 || 
+                string.IsNullOrWhiteSpace(newDish.Image) || 
+                !selectedIngredients.Any())
+            {
+                Console.Error.WriteLine("Dish details are incomplete.");
+                return;
+            }
+            
+            var dishDto = new DishDto
+            {
+                Name = newDish.Name,
+                Price = newDish.Price,
+                Image = newDish.Image,
+                DishIngridientsNames = selectedIngredients.Select(i => i.Name).ToList()
+            };
+            
+            var result = await DishService.AddDish(dishDto);
 
-var result = await DishService.AddDish(dishDto);
-
-if (result)
-{
-Console.WriteLine($"Dish {newDish.Name} added successfully!");
-
-_dishes.Add(newDish); 
-newDish = new Dish();  
-ToggleAddDishForm();  
-}
-else
-{
-Console.Error.WriteLine($"Failed to add dish {newDish.Name}");
-}
-}
-catch (Exception ex)
-{
-Console.Error.WriteLine($"Error in AddDish: {ex.Message}");
-}
-}
+            if (result)
+            {
+                _dishes.Add(new Dish
+                {
+                    Name = newDish.Name,
+                    Price = newDish.Price,
+                    Image = newDish.Image,
+                    Ingridients = new List<NewClient.Models.Ingridient>(selectedIngredients)
+                });
+                
+                ResetForm();
+                ToggleAddDishForm();
+            }
+            else
+            {
+                Console.Error.WriteLine($"Failed to add dish {newDish.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error in AddDish: {ex.Message}");
+        }
+    }
+    private void ResetForm()
+    {
+        newDish = new Dish();
+        selectedIngredients.Clear();
+    }
 }

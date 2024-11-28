@@ -7,7 +7,7 @@
 @inject IDishSizeService DishSizeService
 @inject NavigationManager NavigationManager
 @inject NotificationService NotificationService
-@inject IJSRuntime JS
+@inject IIngridientService IngridientService
 
 @code {
     [Parameter]
@@ -15,6 +15,7 @@
 
     private Dish dish;
     private List<string> sizes = new();
+    private IEnumerable<NewClient.Models.Ingridient> allIngridients = new List<Models.Ingridient>();
     private string selectedSize;
     private decimal selectedPrice;
     private string errorMessage;
@@ -23,6 +24,7 @@
     private string newIngredientName;
     private bool isModalVisible = false;
     private int dishToDeleteId;
+    private int selectedIngredientId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -45,6 +47,8 @@
                 selectedSize = minSize.Size;
                 selectedPrice = dish.Price + minSize.Price;
             }
+
+            allIngridients = await IngridientService.GetAllAsync();
         }
         catch (Exception ex)
         {
@@ -55,7 +59,6 @@
             isLoading = false;
         }
     }
-
     private async Task SelectSizeAsync(string size)
     {
         selectedSize = size;
@@ -71,12 +74,10 @@
             await NotificationService.ShowNotification("Failed to calculate price for the selected size.", "error");
         }
     }
-
     private void ToggleEditMode()
     {
         isEditing = !isEditing;
     }
-
     private async Task EditDishAsync()
     {
         try
@@ -103,19 +104,16 @@
             await NotificationService.ShowNotification("Error editing dish:", "error");
         }
     }
-
     private void ShowDeleteModal(int dishId)
     {
         isModalVisible = true;
         dishToDeleteId = dishId;
     }
-
     private void HideDeleteModal()
     {
         isModalVisible = false;
         dishToDeleteId = 0;
     }
-
     private async Task DeleteDishAsync()
     {
         try
@@ -139,31 +137,46 @@
             HideDeleteModal();
         }
     }
-
+    
     private async Task BuyDishAsync()
     {
+        Console.WriteLine($"Buying {dish.Name}");
+        CartService.AddToCart(dish, selectedSize, selectedPrice, 1);
+        Console.WriteLine();
+        await NotificationService.ShowNotification($"{dish.Name} added to cart!", "success");
     }
 
-    private void RemoveIngredient(int ingredientId)
+    private async Task RemoveIngredient(int ingredientId)
     {
         var ingredientToRemove = dish.Ingridients.FirstOrDefault(i => i.Id == ingredientId);
         if (ingredientToRemove != null)
         {
-            dish.Ingridients.Remove(ingredientToRemove);
+            IngridientService.RemoveIngridientFromDish(dish.Id, ingredientToRemove.Id);
+            await NotificationService.ShowNotification($"Ingredient {ingredientToRemove.Name} removed!", "success");
+            StateHasChanged(); 
         }
-    }
-
-    private void AddIngredient()
-    {
-        if (!string.IsNullOrEmpty(newIngredientName))
+        else
         {
-            //dish.Ingridients.Add(new Ingredient { Name = newIngredientName });
-            newIngredientName = string.Empty;
+            await NotificationService.ShowNotification("Failed to find the selected ingredient.", "error");
         }
     }
+    private async Task AddIngredientFromDatabase()
+    {
+        var ingredientToAdd = allIngridients.FirstOrDefault(i => i.Id == selectedIngredientId);
+    
+        if (ingredientToAdd != null)
+        {
+            IngridientService.AddIngridientToDish(dish.Id, ingredientToAdd.Name);
+            await NotificationService.ShowNotification($"Ingredient {ingredientToAdd.Name} added!", "success");
+            StateHasChanged(); 
+        }
+        else
+        {
+            await NotificationService.ShowNotification("Failed to find the selected ingredient.", "error");
+        }
+    }
+
 }
-
-
 @if (isLoading)
 {
     <p>Loading dish details...</p>
@@ -180,16 +193,16 @@ else
             <div class="mb-4 overflow-hidden rounded-lg">
                 <img class="w-full h-auto object-cover transition-transform duration-500 hover:scale-105" src="@dish.Image" alt="@dish.Name" />
             </div>
-            <p class="text-gray-800 font-medium mb-2">Price: 
+            <p class="text-gray-800 font-medium mb-2">Price:
                 <span class="text-lg font-bold text-green-600">@selectedPrice</span>
             </p>
             <h3 class="text-gray-900 font-semibold mb-2">Select Size:</h3>
             <div class="flex space-x-2 mb-4">
                 @foreach (var size in sizes)
                 {
-                    <button @onclick="() => SelectSizeAsync(size)" 
+                    <button @onclick="() => SelectSizeAsync(size)"
                             class="flex-1 p-2 rounded transition duration-200 
-                                   @(selectedSize == size ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800")">
+                                           @(selectedSize == size ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800")">
                         @size
                     </button>
                 }
@@ -223,7 +236,7 @@ else
 
                 <h4 class="text-gray-900 font-semibold mb-2">Ingredients:</h4>
                 <ul class="list-disc list-inside text-gray-700 mb-4">
-                    @foreach (var ingredient in dish?.Ingridients)
+                    @foreach (var ingredient in dish.Ingridients)
                     {
                         <li>
                             @ingredient.Name
@@ -235,9 +248,15 @@ else
                 </ul>
 
                 <div class="flex items-center space-x-4">
-                    <input @bind="newIngredientName" placeholder="New ingredient" class="p-2 border border-gray-300 rounded flex-1" />
-                    <button @onclick="AddIngredient" class="button-success">
-                        Add
+                    <select @bind="selectedIngredientId" class="p-2 border border-gray-300 rounded">
+                        <option value="">Select Ingredient</option>
+                        @foreach (var ingredient in allIngridients)
+                        {
+                            <option value="@ingredient.Id">@ingredient.Name</option>
+                        }
+                    </select>
+                    <button @onclick="AddIngredientFromDatabase" class="button-success">
+                        Add Ingredient
                     </button>
                 </div>
 
@@ -253,7 +272,6 @@ else
         }
     </div>
 }
-
 @if (isModalVisible)
 {
     <div class="modal show">

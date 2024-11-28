@@ -177,5 +177,55 @@ namespace NewClient.Services
                 return new List<DishIngridient>();
             }
         }
+        
+        public async Task<bool> AddIngridientToDish(int dishId, string name)
+        {
+            using var client = new HttpClient();
+            try
+            {
+                string url = $"{_baseUrl}/api/Ingridient/AddIngridientToDish?dishId={dishId}&name={Uri.EscapeDataString(name)}";
+
+                var apiResponse = await client.PostAsync(url, null);
+
+                if (apiResponse.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+
+                var errorMessage = await apiResponse.Content.ReadAsStringAsync();
+                Console.Error.WriteLine($"Failed to add ingredient to dish. Status Code: {apiResponse.StatusCode}, Error: {errorMessage}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error in AddIngridientToDish: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> RemoveIngridientFromDish(int dishId, int id)
+        {
+            using var client = new HttpClient();
+            try
+            {
+                string url = $"{_baseUrl}/api/Ingridient/RemoveIngridientFromDish?dishId={dishId}&ingridientId={id}";
+
+                var apiResponse = await client.DeleteAsync(url);
+
+                if (apiResponse.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+
+                var errorMessage = await apiResponse.Content.ReadAsStringAsync();
+                Console.Error.WriteLine($"Failed to remove ingredient from dish. Status Code: {apiResponse.StatusCode}, Error: {errorMessage}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error in RemoveIngridientFromDish: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

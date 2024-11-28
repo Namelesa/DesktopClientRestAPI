@@ -25,6 +25,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IIngridientService, IngridientService>();
         builder.Services.AddSingleton<IDishService, DishService>();
         builder.Services.AddSingleton<IDishSizeService, DishSizeService>();
+        builder.Services.AddSingleton<IOrderService, OrderService>();
+        builder.Services.AddSingleton<CartService>();
         builder.Services.AddBlazoredLocalStorage();
         builder.Services.AddScoped<NotificationService>();
         

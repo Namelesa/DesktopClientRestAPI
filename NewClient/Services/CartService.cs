@@ -1,61 +1,55 @@
 using NewClient.Models;
-using Newtonsoft.Json;
 
 namespace NewClient.Services;
 
 public class CartService
 {
-    private const string CartKey = "cart";
+    private static List<CartItem> _cartItems = new();
 
-    public List<CartItem> GetCart()
-    {
-        var cartJson = Preferences.Get(CartKey, string.Empty);
-        if (string.IsNullOrEmpty(cartJson))
-        {
-            return new List<CartItem>();
-        }
-        return JsonConvert.DeserializeObject<List<CartItem>>(cartJson);
-    }
+    public IReadOnlyList<CartItem> GetCartItems() => _cartItems;
 
-    public void SaveCart(List<CartItem> cart)
+    public static void AddToCart(Dish dish, string size, decimal price, int quantity)
     {
-        var cartJson = JsonConvert.SerializeObject(cart);
-        Preferences.Set(CartKey, cartJson);
-    }
-
-    public void AddToCart(CartItem newItem)
-    {
-        var cart = GetCart();
-        var existingItem = cart.FirstOrDefault(item => item.ProductId == newItem.ProductId && item.Size == newItem.Size);
+        var existingItem = _cartItems.FirstOrDefault(item => item.DishId == dish.Id && item.Size == size);
         
         if (existingItem != null)
         {
-            existingItem.Quantity += 1;
+            existingItem.Quantity += quantity; 
         }
         else
         {
-            cart.Add(newItem);
+            _cartItems.Add(new CartItem
+            {
+                DishId = dish.Id,
+                DishName = dish.Name,
+                DishImage = dish.Image,
+                Size = size,
+                Price = price,
+                Quantity = quantity
+            });
         }
-        
-        SaveCart(cart);
     }
 
-    public void RemoveFromCart(CartItem itemToRemove)
+    public void RemoveFromCart(int dishId, string size)
     {
-        var cart = GetCart();
-        cart.RemoveAll(item => item.ProductId == itemToRemove.ProductId && item.Size == itemToRemove.Size);
-        SaveCart(cart);
-    }
-
-    public void UpdateQuantity(CartItem item, int quantity)
-    {
-        var cart = GetCart();
-        var existingItem = cart.FirstOrDefault(cartItem => cartItem.ProductId == item.ProductId && cartItem.Size == item.Size);
-        
-        if (existingItem != null)
+        var item = _cartItems.FirstOrDefault(i => i.DishId == dishId && i.Size == size);
+        if (item != null)
         {
-            existingItem.Quantity = quantity;
-            SaveCart(cart);
+            _cartItems.Remove(item);
         }
+    }
+
+    public void UpdateQuantity(int dishId, string size, int quantity)
+    {
+        var item = _cartItems.FirstOrDefault(i => i.DishId == dishId && i.Size == size);
+        if (item != null)
+        {
+            item.Quantity = quantity;
+        }
+    }
+
+    public void ClearCart()
+    {
+        _cartItems.Clear();
     }
 }

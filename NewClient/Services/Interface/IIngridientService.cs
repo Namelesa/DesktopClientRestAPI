@@ -1,4 +1,5 @@
 using NewClient.Models;
+using NewClient.Models.Dto;
 
 namespace NewClient.Services.Interface;
 public interface IIngridientService
@@ -10,4 +11,6 @@ public interface IIngridientService
     Task<bool> UpdateIngridient(Ingridient ingridient);
     Task<bool> DeleteAsync(Ingridient ingridient);
     Task<List<DishIngridient>> GetDishIngridientByIdAsync(int id);
+    public Task<bool> AddIngridientToDish(int dishId, string name);
+    public Task<bool> RemoveIngridientFromDish(int dishId, int id);
 }

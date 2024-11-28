@@ -92,6 +92,20 @@
                         Delete
                     </button>
                 </div>
+                <h3>Used in dishes:</h3>
+                @if (relatedDishes != null && relatedDishes.Any())
+                {
+                <ul>
+                    @foreach (var dish in relatedDishes)
+                    {
+                    <li>@dish.Name</li>
+                    }
+                </ul>
+                }
+                else
+                {
+                <p>No dishes found for this ingredient.</p>
+                }
             </div>
         </div>
     }
@@ -127,8 +141,9 @@
     private bool showForm = false;
     private bool showDetails = false;
     private bool isEditing = false;
-    private NewClient.Models.Ingridient newIngredient = new Models.Ingridient();
+    private NewClient.Models.Ingridient newIngredient = new();
     private NewClient.Models.Ingridient selectedIngredient = new();
+    private List<Dish> relatedDishes = new();
     private bool showDishIngredients = false;
     private List<DishIngridient> dishIngredients = new();
 
@@ -259,12 +274,37 @@
         }
     }
 
-    private void OpenIngredientDetails(NewClient.Models.Ingridient ingredient)
+    private async void OpenIngredientDetails(NewClient.Models.Ingridient ingredient)
     {
         selectedIngredient = ingredient;
         showDetails = true;
-    }
 
+        try
+        {
+            var dishes = await IngridientService.GetDishIngridientByIdAsync(ingredient.Id);
+            
+            if (dishes == null || !dishes.Any())
+            {
+                await NotificationService.ShowNotification("No dishes found for this ingredient.", "info");
+            }
+            else
+            {
+                relatedDishes = dishes.Select(di => di.Dish).ToList();
+                StateHasChanged();
+                
+                foreach (var dish in relatedDishes)
+                {
+                    await LoadDishIngredients(dish.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowNotification($"Error loading dishes for ingredient: {ex.Message}", "error");
+            relatedDishes = new List<Dish>();
+        }
+    }
+    
     private void CloseDetails()
     {
         showDetails = false;
@@ -275,13 +315,10 @@
         try
         {
             dishIngredients = await IngridientService.GetDishIngridientByIdAsync(dishId);
+            StateHasChanged();
             if (dishIngredients == null || !dishIngredients.Any())
             {
-                await NotificationService.ShowNotification("No ingredients found for this dish.", "info");
-            }
-            else
-            {
-                showDishIngredients = true;
+                await NotificationService.ShowNotification("No ingredients found for this dish", "info");
             }
         }
         catch (Exception ex)
